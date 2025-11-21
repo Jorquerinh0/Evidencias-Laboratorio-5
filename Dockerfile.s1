@@ -1,0 +1,30 @@
+# Servidor S1 / Cliente C4 - Ubuntu 22.10 (con repos EOL corregidos v3)
+FROM ubuntu:22.10
+
+# REEMPLAZAR COMPLETAMENTE el sources.list
+# (Quitamos la línea kinetic-security que da 404)
+RUN printf "deb http://old-releases.ubuntu.com/ubuntu/ kinetic main restricted universe multiverse\n\
+deb http://old-releases.ubuntu.com/ubuntu/ kinetic-updates main restricted universe multiverse\n" > /etc/apt/sources.list
+
+# Instalar cliente, servidor SSH y herramientas de red
+RUN apt-get update -o Acquire::Check-Valid-Until=false && \
+    apt-get install -y openssh-client openssh-server tcpdump net-tools iputils-ping sudo && \
+    rm -rf /var/lib/apt/lists/*
+
+# Creación de credenciales para S1
+RUN useradd -m -s /bin/bash prueba && \
+    echo 'prueba:prueba' | chpasswd && \
+    adduser prueba sudo
+
+# Configuración para que sshd funcione
+# Usamos -p para que no falle si el directorio ya existe
+RUN mkdir -p /var/run/sshd
+RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config
+RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+# Descomentamos 'UsePAM yes' para asegurar compatibilidad
+RUN sed -i 's/#UsePAM yes/UsePAM yes/' /etc/ssh/sshd_config
+
+EXPOSE 22
+
+# Iniciar el servidor SSH
+CMD ["/usr/sbin/sshd", "-D"]
